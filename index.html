@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>נשימה — גרסה 7 | סקירת הקלטות</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700&display=swap');
+    * { font-family: 'Heebo', sans-serif; }
+    body { background: #0f172a; color: #e2e8f0; }
+    .section-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+    .page-header { background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); border-bottom: 3px solid #38bdf8; }
+    .comment-bubble { background: #334155; border-radius: 8px; }
+    audio { width: 100%; border-radius: 8px; }
+    audio::-webkit-media-controls-panel { background: #334155; }
+    .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; }
+    .btn-primary { background: #2563eb; transition: background 0.2s; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .transcript-text { background: #0f172a; border: 1px solid #334155; border-radius: 8px; line-height: 1.8; }
+    .nav-link { transition: all 0.2s; border-bottom: 2px solid transparent; }
+    .nav-link:hover, .nav-link.active { border-bottom-color: #38bdf8; color: #38bdf8; }
+    .comment-name { color: #38bdf8; font-weight: 500; }
+    .count-badge { background: #38bdf8; color: #0f172a; font-weight: 700; font-size: 0.75rem; padding: 1px 7px; border-radius: 999px; }
+    .loading { animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #16a34a; padding: 10px 24px; border-radius: 8px; z-index: 1000; display: none; }
+    .final-badge { background: #059669; color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; margin-right: 8px; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- Toast notification -->
+<div id="toast" class="toast text-white font-medium"></div>
+
+<!-- Comment form template (hidden, cloned per track) -->
+<template id="comment-form-template">
+  <form class="mt-2 comment-form">
+    <div class="flex gap-2 mb-2">
+      <input name="name" placeholder="שם" required
+        class="bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-sm flex-shrink-0 w-24 text-gray-200 placeholder-gray-500 focus:border-blue-500 focus:outline-none">
+      <input name="text" placeholder="הערה..." required
+        class="bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-sm flex-1 text-gray-200 placeholder-gray-500 focus:border-blue-500 focus:outline-none">
+    </div>
+    <div class="flex gap-2 items-center">
+      <label class="flex items-center gap-1 text-xs text-gray-400 cursor-pointer">
+        <input type="radio" name="type" value="comment" checked class="accent-blue-500"> הערה
+      </label>
+      <label class="flex items-center gap-1 text-xs text-green-400 cursor-pointer">
+        <input type="radio" name="type" value="approve" class="accent-green-500"> מאשר
+      </label>
+      <label class="flex items-center gap-1 text-xs text-red-400 cursor-pointer">
+        <input type="radio" name="type" value="issue" class="accent-red-500"> בעיה
+      </label>
+      <button type="submit" class="btn-primary text-white text-xs px-3 py-1 rounded mr-auto">שלח</button>
+    </div>
+  </form>
+</template>
+
+<!-- Header -->
+<header class="page-header py-6 px-4 mb-8">
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-2">נשימה — גרסה 7 <span class="final-badge">V7</span></h1>
+    <p class="text-gray-400 text-sm">גרסה 7 — 18 תיקונים מהביקורת הקודמת (הגייה, טקסט, קצב). הערות חדשות בלבד.</p>
+    <div class="flex gap-2 mt-3 text-xs text-gray-500">
+      <span>אלעד</span><span>·</span><span>אסף</span><span>·</span><span>עמית</span>
+    </div>
+  </div>
+</header>
+
+<!-- Navigation -->
+<nav class="sticky top-0 z-50 bg-gray-900 bg-opacity-95 backdrop-blur border-b border-gray-700 py-3 px-4">
+  <div class="max-w-4xl mx-auto flex gap-6 justify-center text-sm">
+    <a href="#panic" class="nav-link pb-1 text-gray-300">התקף חרדה</a>
+    <a href="#calming" class="nav-link pb-1 text-gray-300">תרגילי הרגעה</a>
+    <a href="#after" class="nav-link pb-1 text-gray-300">אחרי אירוע</a>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<main class="max-w-4xl mx-auto px-4 pb-16">
+
+  <!-- Stats bar -->
+  <div id="stats-bar" class="flex gap-4 justify-center text-sm text-gray-400 my-6">
+    <span>22 הקלטות</span>
+    <span>·</span>
+    <span id="total-comments-count" class="loading">טוען הערות...</span>
+  </div>
+
+  <!-- ==================== Page: התקף חרדה ==================== -->
+  <section id="panic" class="mb-12">
+    <h2 class="text-2xl font-bold mb-1 text-blue-300">התקף חרדה</h2>
+    <p class="text-gray-500 text-sm mb-6">הדרכה צעד-אחר-צעד להתמודדות עם התקף חרדה</p>
+
+    <div class="section-card p-5 mb-4" id="card-panic-intro">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">הקדמה</h3>
+        <span class="badge bg-blue-900 text-blue-300">panic-intro</span>
+      </div>
+      <audio controls preload="none" src="audio/panic-intro.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">חשוב לדעת: התקף חרדה מרגיש כאילו אתם עומדים למות, אבל אתם לא. הוא מגיע לשיא תוך עשר דקות ועובר. אף אחד לא מת מהתקף חרדה. הנה מה שאפשר לעשות.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-panic-intro"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-panic-step1-recognize">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">צעד 1: זהה</h3>
+        <span class="badge bg-blue-900 text-blue-300">panic-step1-recognize</span>
+      </div>
+      <audio controls preload="none" src="audio/panic-step1-recognize.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">זהה. אמרו לעצמכם בקול: "זה התקף חרדה. עברתי את זה בעבר. זה יעבור." ההכרה שזה התקף חרדה, ולא משהו מסוכן יותר, כבר מתחילה להרגיע את המוח.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-panic-step1-recognize"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-panic-step2-stop">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">צעד 2: עצור</h3>
+        <span class="badge bg-blue-900 text-blue-300">panic-step2-stop</span>
+      </div>
+      <audio controls preload="none" src="audio/panic-step2-stop.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">עצור. עצרו את מה שאתם עושים. שבו אם אפשר. הניחו את הטלפון. הרגישו את הכיסא או הרצפה מתחתיכם. אם אתם נוהגים, עצרו בצד.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-panic-step2-stop"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-panic-step3a-breathe">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">צעד 3א: נשימת 4-6</h3>
+        <span class="badge bg-blue-900 text-blue-300">panic-step3a-breathe</span>
+      </div>
+      <audio controls preload="none" src="audio/panic-step3a-breathe.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">נשום. נשימת ארבע-שש: שאיפה ארבע שניות, נשיפה שש שניות. הנשיפה הארוכה מרגיעה את מערכת העצבים. עשו לפחות ארבעה עד חמישה סבבים. זה מאט את הדופק ומרגיע את מערכת העצבים.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-panic-step3a-breathe"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-panic-step3b-sigh">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">צעד 3ב: אנחה פיזיולוגית</h3>
+        <span class="badge bg-blue-900 text-blue-300">panic-step3b-sigh</span>
+      </div>
+      <audio controls preload="none" src="audio/panic-step3b-sigh.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">אנחה פיזיולוגית: שאיפה ארוכה, עוד לגימה קצרה למלא עד הסוף, ואז נשיפה ארוכה. הדרך המהירה ביותר להרגיע את הגוף.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-panic-step3b-sigh"></div>
+
+      <!-- Sigh demo takes for comparison -->
+      <div class="mt-4 p-4 bg-gray-800 bg-opacity-50 rounded-lg border border-purple-900">
+        <h4 class="text-sm font-bold text-purple-300 mb-3">בחרו את הטייק הטוב ביותר — אנחה עם שאיפה ונשיפה אמיתיות:</h4>
+        <div class="space-y-3">
+          <div>
+            <span class="text-xs text-gray-400 block mb-1">טייק 1 — הנחיה עם צלילי נשימה</span>
+            <audio controls preload="none" src="audio/sigh-demo-1.mp3"></audio>
+          </div>
+          <div>
+            <span class="text-xs text-gray-400 block mb-1">טייק 2 — הדגמה בין משפטים</span>
+            <audio controls preload="none" src="audio/sigh-demo-2.mp3"></audio>
+          </div>
+          <div>
+            <span class="text-xs text-gray-400 block mb-1">טייק 3 — נשימות לפני כל שלב</span>
+            <audio controls preload="none" src="audio/sigh-demo-3.mp3"></audio>
+          </div>
+        </div>
+        <div class="mt-3" data-comments="v7-sigh-demo-pick"></div>
+      </div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-panic-step4-ground">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">צעד 4: קרקע</h3>
+        <span class="badge bg-blue-900 text-blue-300">panic-step4-ground</span>
+      </div>
+      <audio controls preload="none" src="audio/panic-step4-ground.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">קרקע. טכניקת חמש-ארבע-שלוש-שתיים-אחת: חמישה דברים שאני רואה. ארבעה דברים שאני נוגע בהם. שלושה דברים שאני שומע. שני דברים שאני מריח. דבר אחד שאני טועם. אמרו את התשובות בקול — זה מחזיר את המוח להווה.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-panic-step4-ground"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-panic-step5-remind">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">צעד 5: היזכר</h3>
+        <span class="badge bg-blue-900 text-blue-300">panic-step5-remind</span>
+      </div>
+      <audio controls preload="none" src="audio/panic-step5-remind.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">היזכר. אמרו לעצמכם: "מה שאני מרגיש עכשיו זה התקף חרדה. זה מוכר לי." "אני במקום הכי בטוח שיכולתי להגיע אליו." "זה יגיע לשיא ויעבור תוך דקות." "עברתי את זה בעבר, ואעבור גם עכשיו." "אני לא לבד. יש אנשים שיכולים לעזור לי." "אני ממשיך לנשום. הגוף שלי יודע להירגע."</div>
+      </details>
+      <div class="mt-3" data-comments="v7-panic-step5-remind"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-panic-step6-wait">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">צעד 6: המתן</h3>
+        <span class="badge bg-blue-900 text-blue-300">panic-step6-wait</span>
+      </div>
+      <audio controls preload="none" src="audio/panic-step6-wait.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">המתן. הישארו במקום. תנו לזה לעבור. התקף חרדה הוא כמו גל — הוא עולה, מגיע לשיא, ויורד. השיא מגיע תוך עשר דקות לכל היותר, ואז הגוף מתחיל להירגע לבד. לא צריך לעשות כלום מיוחד — רק לתת לגל לעבור. המשיכו לנשום, המשיכו לקרקע, ותנו לזמן לעשות את שלו. דמיינו: אתם יושבים על החוף ורואים גל גדול מתקרב. הוא מגיע, הוא שוטף, והוא חולף. אתם עדיין כאן.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-panic-step6-wait"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-panic-after-wave">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">אחרי שהגל עובר</h3>
+        <span class="badge bg-blue-900 text-blue-300">panic-after-wave</span>
+      </div>
+      <audio controls preload="none" src="audio/panic-after-wave.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">אחרי שהגל עובר. שתו מים. שבו ונוחו כמה דקות. התקשרו למישהו שאתם סומכים עליו. אל תשפטו את עצמכם — עברתם את זה, וזה הישג.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-panic-after-wave"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-panic-dissociation">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">תחושת ניתוק (דיסוציאציה)</h3>
+        <span class="badge bg-blue-900 text-blue-300">panic-dissociation</span>
+      </div>
+      <audio controls preload="none" src="audio/panic-dissociation.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">מרגישים לא כאן? כאילו אתם צופים מבחוץ? זו דיסוציאציה — תחושת ניתוק. לפעמים בזמן חרדה חזקה, הגוף מנתק — אתם מרגישים כאילו הדברים לא אמיתיים, או שאתם מרגישים רחוקים מעצמכם. זו תגובה נורמלית של הגוף — הוא מנסה להגן עליכם. אם זה קורה, תרגילי נשימה עמוקה ועצימת עיניים עלולים להגביר את התחושה הזו. במקום זה: השאירו עיניים פקוחות, הביטו בנקודה מול העיניים. החזיקו משהו קר, קוביית קרח או מים קרים על הפנים. לחצו את כפות הרגליים חזק על הרצפה. אמרו בקול: השם שלי, התאריך, איפה אני עכשיו. הריחו ריח חזק — קפה, לימון, בושם. המטרה היא לחזור לכאן — להרגיש את הגוף, לראות את הסביבה, לשמוע את הצלילים. תחושת הניתוק חולפת.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-panic-dissociation"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-panic-seek-help">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">מתי לפנות לעזרה</h3>
+        <span class="badge bg-blue-900 text-blue-300">panic-seek-help</span>
+      </div>
+      <audio controls preload="none" src="audio/panic-seek-help.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">מתי לפנות לעזרה מקצועית? אם ההתקפים חוזרים כמעט כל יום. אם אתם נמנעים מלצאת מהבית בגלל הפחד מהתקף. אם אתם מרגישים שאתם לא מתפקדים. אם אתם משתמשים באלכוהול או חומרים כדי להתמודד. דברו עם המטפל או המטפלת שלכם. מספרי הטלפון של קווי העזרה מופיעים באתר.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-panic-seek-help"></div>
+    </div>
+  </section>
+
+  <!-- ==================== Page: תרגילי הרגעה ==================== -->
+  <section id="calming" class="mb-12">
+    <h2 class="text-2xl font-bold mb-1 text-green-300">תרגילי הרגעה</h2>
+    <p class="text-gray-500 text-sm mb-6">תרגילים לתרגול יומי</p>
+
+    <div class="section-card p-5 mb-4" id="card-calming-intro">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">הקדמה</h3>
+        <span class="badge bg-green-900 text-green-300">calming-intro</span>
+      </div>
+      <audio controls preload="none" src="audio/calming-intro.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">תרגילי הרגעה לתרגול יומי. התרגילים הבאים מיועדים לשימוש יומיומי, ולא רק בזמן משבר. תרגול קבוע מחזק את היכולת של הגוף להירגע מהר יותר כשצריך. התחילו עם מה שמרגיש נכון לכם.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-calming-intro"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-calming-breathing">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">נשימה מרגיעה</h3>
+        <span class="badge bg-green-900 text-green-300">calming-breathing</span>
+      </div>
+      <audio controls preload="none" src="audio/calming-breathing.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">נשימה מרגיעה. למה זה עובד: הנשיפה הארוכה מפעילה את מערכת ההרגעה הטבעית של הגוף, הפאראסימפתטית. תרגול יומי מלמד את הגוף להירגע מהר יותר. טכניקה ראשונה, נשימת ארבע-שש: שאיפה ארבע שניות, נשיפה שש שניות. הנשיפה הארוכה היא המפתח. טכניקה שנייה, אנחה פיזיולוגית: שאיפה ארוכה, עוד לגימה קצרה של אוויר למלא עד הסוף, ואז נשיפה ארוכה. מחקר מסטנפורד הראה שזו הטכניקה היעילה ביותר להורדת מתח בזמן אמת. טכניקה שלישית, נשימת ארבע-שבע-שמונה: שאיפה דרך האף ארבע שניות, עצירת נשימה שבע שניות, נשיפה דרך הפה שמונה שניות. מעולה לפני שינה. טכניקה רביעית, נשימה סרעפתית בטנית: שבו בנוחות, הניחו יד אחת על החזה ואחת על הבטן. נשמו דרך האף. היד על הבטן צריכה לעלות. נשפו לאט דרך הפה, הבטן יורדת. תרגלו שתיים עד שלוש דקות.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-calming-breathing"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-calming-grounding">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">קרקוע חושי</h3>
+        <span class="badge bg-green-900 text-green-300">calming-grounding</span>
+      </div>
+      <audio controls preload="none" src="audio/calming-grounding.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">קרקוע חושי. למה זה עובד: טכניקות קרקוע מפעילות את החושים של ההווה, ודרכם מחזירות את המוח לעבודה. כשאנחנו מתמקדים במה שהחושים קולטים עכשיו, הגוף מקבל מסר: אתה כאן, עכשיו, לא שם. טכניקת חמש-ארבע-שלוש-שתיים-אחת: חמישה דברים שאני רואה, תארו אותם בפירוט. ארבעה דברים שאני נוגע או מרגיש. שלושה דברים שאני שומע. שני דברים שאני מריח. דבר אחד שאני טועם. קרקוע פיזי: לחצו את כפות הרגליים חזק על הרצפה. שטפו ידיים או פנים במים קרים. החזיקו קוביית קרח בכף היד. הריחו ריח חזק כמו קפה, לימון או בושם.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-calming-grounding"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-calming-safe-place">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">מקום בטוח — דמיון מודרך</h3>
+        <span class="badge bg-green-900 text-green-300">calming-safe-place</span>
+      </div>
+      <audio controls preload="none" src="audio/calming-safe-place.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">מקום בטוח, דמיון מודרך. כשמרגישים מוצפים, לפני שינה, או כשצריכים הפסקה מהמתח. המוח לא תמיד מבדיל בין דמיון למציאות. כשאנחנו מדמיינים מקום בטוח בפירוט, הגוף מגיב כאילו אנחנו באמת שם. עצמו עיניים או הביטו בנקודה אחת. קחו שלוש נשימות עמוקות. דמיינו מקום שאתם מרגישים בו בטוחים ורגועים לחלוטין. הוסיפו פרטים חושיים: מה אתם רואים? מה אתם שומעים? מה אתם מרגישים על העור? מה אתם מריחים? הרגישו את הביטחון, את הרוגע. שימו לב איך הגוף משתנה, הכתפיים יורדות, הנשימה מאטה. תנו למקום הזה שם, מילה אחת או שתיים. כך תוכלו לחזור אליו במהירות בכל רגע.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-calming-safe-place"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-calming-body-scan">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">סריקת גוף — הרפיה מתקדמת</h3>
+        <span class="badge bg-green-900 text-green-300">calming-body-scan</span>
+      </div>
+      <audio controls preload="none" src="audio/calming-body-scan.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">סריקת גוף, הרפיה מתקדמת. מתח נפשי נשמר בגוף כמתח שרירי. כשאנחנו מכווצים שריר ומשחררים, אנחנו מלמדים את הגוף מה זה באמת להירגע. סריקה מלמעלה למטה. לכל אזור: כווצו למשך חמש שניות, אחת, שתיים, שלוש, ארבע, חמש, שחררו, הרגישו את ההבדל. פנים ולסת: כווצו את הפנים, אחת, שתיים, שלוש, ארבע, חמש, ושחררו. פתחו את הפה לרווחה, סגרו בעדינות. כתפיים: הרימו כתפיים לאוזניים, אחת, שתיים, שלוש, ארבע, חמש, שחררו בבת אחת ותנו להן ליפול. ידיים: אגרפו את הידיים בחוזקה, אחת, שתיים, שלוש, ארבע, חמש, שחררו. פשטו את האצבעות, הרפו. חזה ובטן: נשמו עמוק וניפחו את הבטן, נשפו לאט ותנו לבטן ליפול. רגליים: לחצו את כפות הרגליים לרצפה בחוזקה, אחת, שתיים, שלוש, ארבע, חמש, שחררו. כווצו את אצבעות הרגליים, שחררו. אחרי הסריקה: שכבו או שבו בשקט לרגע. הרגישו את ההרפיה. נשמו כמה נשימות עמוקות.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-calming-body-scan"></div>
+    </div>
+  </section>
+
+  <!-- ==================== Page: אחרי אירוע מלחיץ ==================== -->
+  <section id="after" class="mb-12">
+    <h2 class="text-2xl font-bold mb-1 text-amber-300">אחרי אירוע מלחיץ</h2>
+    <p class="text-gray-500 text-sm mb-6">מה לעשות אחרי אירוע מלחיץ</p>
+
+    <div class="section-card p-5 mb-4" id="card-after-intro">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">הקדמה</h3>
+        <span class="badge bg-yellow-900 text-yellow-300">after-intro</span>
+      </div>
+      <audio controls preload="none" src="audio/after-intro.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">אחרי אירוע מלחיץ. האזעקה נגמרה. האירוע עבר. אבל הגוף עדיין בהילוך גבוה. זה נורמלי — הגוף צריך זמן להתאושש ממצב ההישרדות. הנה מה שעוזר.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-after-intro"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-after-immediate">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">ברגעים הראשונים</h3>
+        <span class="badge bg-yellow-900 text-yellow-300">after-immediate</span>
+      </div>
+      <audio controls preload="none" src="audio/after-immediate.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">ברגעים הראשונים, מה לעשות מיד אחרי. שתו מים — הגוף מתייבש ממתח, מים עוזרים למערכת העצבים להירגע. הזיזו את הגוף — קומו, הסתובבו, מתחו ידיים. תנועה עוזרת לשחרר את הורמוני הלחץ. קרקוע — עדיין מרגישים באוויר? אמרו בקול שלושה דברים שאתם רואים, שלושה דברים שאתם מרגישים, ושלושה דברים שאתם שומעים. התקשרו למישהו — שיחה עם אדם קרוב מרגיעה את מערכת העצבים. נשמו — חמש נשימות עמוקות: שאיפה ארבע שניות, נשיפה שש שניות. תנו לגוף לקבל את המסר שהסכנה עברה.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-after-immediate"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-after-hours">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">בשעות הבאות</h3>
+        <span class="badge bg-yellow-900 text-yellow-300">after-hours</span>
+      </div>
+      <audio controls preload="none" src="audio/after-hours.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">בשעות הבאות, איך לעבור את שאר היום. הימנעו מצריכת חדשות מוגזמת — גלילה בחדשות אחרי אירוע מלחיץ מחזקת את תגובת הלחץ. הגבילו את עצמכם. אל תתבודדו — היו בחברת אנשים, גם בלי לדבר על מה שקרה. עצם הנוכחות של אנשים מרגיעה. פעילות גופנית קלה — הליכה, מתיחות, יוגה קלה. תנועה עדינה מספיקה. אכלו משהו — גם אם אין תיאבון. הגוף צריך דלק כדי להתאושש. עשו משהו מרגיע — מוזיקה, מקלחת חמה, ספר, סדרה.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-after-hours"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-after-sleep">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">שינה</h3>
+        <span class="badge bg-yellow-900 text-yellow-300">after-sleep</span>
+      </div>
+      <audio controls preload="none" src="audio/after-sleep.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">שינה אחרי אירוע מלחיץ. שמרו על שעת שינה קבועה. בלי מסכים שעה לפני השינה. חדר חשוך, שקט וקריר. בלי קפאין אחרי שתיים בצהריים. תרגיל נשימות או סריקת גוף לפני השינה. לא נרדמים תוך עשרים דקות? קומו ועשו משהו מרגיע. קשיי שינה אחרי אירוע מלחיץ הם נורמליים. אם הם נמשכים יותר משבועיים, דברו עם המטפל או המטפלת.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-after-sleep"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-after-normal">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">מה נורמלי להרגיש</h3>
+        <span class="badge bg-yellow-900 text-yellow-300">after-normal</span>
+      </div>
+      <audio controls preload="none" src="audio/after-normal.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">מה נורמלי להרגיש בימים הבאים. אלו התגובות השכיחות, רובן חולפות: קושי להתרכז. עצבנות או פתיל קצר. בעיות שינה או סיוטים. תחושת ניתוק מהסביבה. חזרה על המחשבות על האירוע. רגישות מוגברת לרעשים. חוסר תיאבון או אכילת יתר. עייפות מוגברת. רוב התגובות האלה חולפות תוך ימים עד שבועות. זו הדרך של הגוף לעבד את מה שקרה.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-after-normal"></div>
+    </div>
+
+    <div class="section-card p-5 mb-4" id="card-after-seek-help">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-bold text-lg">מתי לפנות לעזרה</h3>
+        <span class="badge bg-yellow-900 text-yellow-300">after-seek-help</span>
+      </div>
+      <audio controls preload="none" src="audio/after-seek-help.mp3"></audio>
+      <details class="mt-3">
+        <summary class="text-sm text-gray-400 cursor-pointer hover:text-gray-200">תמלול</summary>
+        <div class="transcript-text p-3 mt-2 text-sm text-gray-300">מתי חשוב לפנות לעזרה? אם התסמינים נמשכים יותר משבועיים ולא משתפרים. אם אתם לא מצליחים לתפקד, בעבודה, בבית, ביחסים. אם אתם משתמשים באלכוהול או חומרים כדי להתמודד. אם יש מחשבות אובדניות או תחושת חוסר תקווה. קווי עזרה: ער"ן, 1201, עזרה ראשונה נפשית. נט"ל, 1-800-363-363, קו חירום לנפגעי טראומה.</div>
+      </details>
+      <div class="mt-3" data-comments="v7-after-seek-help"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Footer -->
+<footer class="text-center text-gray-600 text-xs py-8 border-t border-gray-800">
+  נשימה — גרסה 7 | 2026
+</footer>
+
+<script>
+var API_URL = 'https://script.google.com/macros/s/AKfycbxiElPsQb8E3flyuJzrC4l7RTsVGaYkMT_dBK4Voys3DfKAcMgVo5XlrIvn4WuFHQHJyw/exec';
+var VERSION_PREFIX = 'v7-';
+
+var allComments = [];
+
+function fmtDate(iso) {
+  var d = new Date(iso);
+  return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function createEl(tag, classes, textContent) {
+  var el = document.createElement(tag);
+  if (classes) el.className = classes;
+  if (textContent) el.textContent = textContent;
+  return el;
+}
+
+function buildCommentEl(c) {
+  var bubble = createEl('div', 'comment-bubble p-3 mb-2 text-sm');
+  var header = createEl('div', 'flex items-center gap-2 mb-1');
+  header.appendChild(createEl('span', 'comment-name', c.name));
+
+  if (c.type === 'approve') {
+    header.appendChild(createEl('span', 'text-green-400 ml-1', '\u2713'));
+  } else if (c.type === 'issue') {
+    header.appendChild(createEl('span', 'text-red-400 ml-1', '\u26A0'));
+  }
+
+  header.appendChild(createEl('span', 'text-gray-500 text-xs', fmtDate(c.date)));
+
+  var delBtn = createEl('button', 'text-gray-600 hover:text-red-400 text-xs mr-auto cursor-pointer', '\u00D7');
+  delBtn.title = '\u05DE\u05D7\u05E7 \u05D4\u05E2\u05E8\u05D4';
+  delBtn.style.fontSize = '1.1rem';
+  delBtn.style.lineHeight = '1';
+  delBtn.addEventListener('click', function() { deleteComment(c.date); });
+  header.appendChild(delBtn);
+
+  bubble.appendChild(header);
+  bubble.appendChild(createEl('p', 'text-gray-300', c.text));
+  return bubble;
+}
+
+function buildForm(trackId) {
+  var tpl = document.getElementById('comment-form-template');
+  var form = tpl.content.cloneNode(true).querySelector('form');
+  form.dataset.track = trackId;
+  form.addEventListener('submit', function(e) { submitComment(e, trackId); });
+
+  var saved = localStorage.getItem('reviewer-name');
+  if (saved) {
+    form.querySelector('input[name="name"]').value = saved;
+  }
+  return form;
+}
+
+function renderAllComments() {
+  document.querySelectorAll('[data-comments]').forEach(function(container) {
+    var trackId = container.dataset.comments;
+    var trackComments = allComments.filter(function(c) { return c.trackId === trackId; });
+
+    while (container.firstChild) container.removeChild(container.firstChild);
+
+    var wrapper = createEl('div', 'border-t border-gray-700 pt-3 mt-2');
+
+    var headerRow = createEl('div', 'flex items-center justify-between mb-2');
+    var headerSpan = createEl('span', 'text-sm text-gray-400');
+    if (trackComments.length > 0) {
+      var badge = createEl('span', 'count-badge mr-2', String(trackComments.length));
+      headerSpan.appendChild(badge);
+    }
+    headerSpan.appendChild(document.createTextNode('\u05D4\u05E2\u05E8\u05D5\u05EA'));
+    headerRow.appendChild(headerSpan);
+    wrapper.appendChild(headerRow);
+
+    trackComments.forEach(function(c) {
+      wrapper.appendChild(buildCommentEl(c));
+    });
+
+    wrapper.appendChild(buildForm(trackId));
+
+    container.appendChild(wrapper);
+  });
+}
+
+function loadComments() {
+  fetch(API_URL).then(function(res) {
+    return res.json();
+  }).then(function(data) {
+    // Filter only comments with our version prefix
+    allComments = (data.comments || []).filter(function(c) {
+      return c.trackId && c.trackId.indexOf(VERSION_PREFIX) === 0;
+    });
+    renderAllComments();
+    var countEl = document.getElementById('total-comments-count');
+    countEl.textContent = allComments.length + ' \u05D4\u05E2\u05E8\u05D5\u05EA';
+    countEl.classList.remove('loading');
+  }).catch(function(e) {
+    console.error('Failed to load comments:', e);
+    var countEl = document.getElementById('total-comments-count');
+    countEl.textContent = '\u05E9\u05D2\u05D9\u05D0\u05D4 \u05D1\u05D8\u05E2\u05D9\u05E0\u05EA \u05D4\u05E2\u05E8\u05D5\u05EA';
+    countEl.classList.remove('loading');
+  });
+}
+
+function submitComment(e, trackId) {
+  e.preventDefault();
+  var form = e.target;
+  var name = form.querySelector('input[name="name"]').value.trim();
+  var text = form.querySelector('input[name="text"]').value.trim();
+  var typeEl = form.querySelector('input[name="type"]:checked');
+  var type = typeEl ? typeEl.value : 'comment';
+  if (!name || !text) return;
+
+  localStorage.setItem('reviewer-name', name);
+
+  var comment = { trackId: trackId, name: name, text: text, type: type, date: new Date().toISOString() };
+
+  var btn = form.querySelector('button');
+  btn.textContent = '\u05E9\u05D5\u05DC\u05D7...';
+  btn.disabled = true;
+
+  fetch(API_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(comment)
+  }).then(function() {
+    allComments.push(comment);
+    renderAllComments();
+    showToast('\u05D4\u05D4\u05E2\u05E8\u05D4 \u05E0\u05E9\u05DE\u05E8\u05D4!');
+    loadComments();
+  }).catch(function(err) {
+    console.error('Failed to save comment:', err);
+    showToast('\u05E9\u05D2\u05D9\u05D0\u05D4 \u05D1\u05E9\u05DE\u05D9\u05E8\u05EA \u05D4\u05D4\u05E2\u05E8\u05D4', true);
+    btn.textContent = '\u05E9\u05DC\u05D7';
+    btn.disabled = false;
+  });
+}
+
+function deleteComment(date) {
+  allComments = allComments.filter(function(c) { return c.date !== date; });
+  renderAllComments();
+  var countEl = document.getElementById('total-comments-count');
+  countEl.textContent = allComments.length + ' \u05D4\u05E2\u05E8\u05D5\u05EA';
+
+  fetch(API_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'delete', date: date })
+  }).then(function() {
+    showToast('\u05D4\u05D4\u05E2\u05E8\u05D4 \u05E0\u05DE\u05D7\u05E7\u05D4!');
+    loadComments();
+  }).catch(function(err) {
+    console.error('Failed to delete comment:', err);
+    showToast('\u05E9\u05D2\u05D9\u05D0\u05D4 \u05D1\u05DE\u05D7\u05D9\u05E7\u05EA \u05D4\u05D4\u05E2\u05E8\u05D4', true);
+    loadComments();
+  });
+}
+
+function showToast(msg, isError) {
+  var toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.style.background = isError ? '#dc2626' : '#16a34a';
+  toast.style.display = 'block';
+  setTimeout(function() { toast.style.display = 'none'; }, 2500);
+}
+
+var observer = new IntersectionObserver(function(entries) {
+  entries.forEach(function(entry) {
+    if (entry.isIntersecting) {
+      document.querySelectorAll('.nav-link').forEach(function(l) { l.classList.remove('active'); });
+      var link = document.querySelector('.nav-link[href="#' + entry.target.id + '"]');
+      if (link) link.classList.add('active');
+    }
+  });
+}, { threshold: 0.2 });
+
+document.querySelectorAll('section[id]').forEach(function(s) { observer.observe(s); });
+
+loadComments();
+</script>
+</body>
+</html>
