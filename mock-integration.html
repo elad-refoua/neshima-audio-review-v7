@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neshima — Mock Integration: Audio in App</title>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Rubik', sans-serif; background: #f8fafc; color: #1e293b; direction: rtl; }
+
+/* Header */
+.header { background: linear-gradient(135deg, #0891b2 0%, #0e7490 50%, #155e75 100%); color: white; padding: 20px; text-align: center; position: sticky; top: 0; z-index: 100; }
+.header h1 { font-size: 1.8rem; font-weight: 700; }
+.header p { font-size: 0.9rem; opacity: 0.9; margin-top: 4px; }
+
+/* Navigation */
+.nav { display: flex; gap: 8px; padding: 12px 16px; background: white; border-bottom: 1px solid #e2e8f0; overflow-x: auto; position: sticky; top: 76px; z-index: 99; }
+.nav button { padding: 8px 16px; border: 2px solid #0891b2; background: white; color: #0891b2; border-radius: 20px; font-family: inherit; font-size: 0.85rem; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+.nav button.active { background: #0891b2; color: white; }
+.nav button:hover { background: #ecfeff; }
+.nav button.active:hover { background: #0e7490; }
+
+/* Page sections */
+.page { display: none; max-width: 800px; margin: 0 auto; padding: 20px 16px; }
+.page.active { display: block; }
+.page-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
+.page-subtitle { font-size: 0.9rem; color: #64748b; margin-bottom: 20px; }
+
+/* Cards */
+.card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+.card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.card-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
+.card-title { font-size: 1.05rem; font-weight: 600; }
+.card-step { font-size: 0.75rem; color: #94a3b8; font-weight: 500; }
+.card-text { font-size: 0.9rem; color: #475569; line-height: 1.7; margin-bottom: 14px; }
+
+/* Audio integration highlight */
+.audio-zone { background: linear-gradient(135deg, #ecfeff 0%, #f0f9ff 100%); border: 2px dashed #0891b2; border-radius: 12px; padding: 14px; margin-top: 12px; }
+.audio-zone-label { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 600; color: #0891b2; margin-bottom: 8px; }
+.audio-zone-label::before { content: ''; display: inline-block; width: 8px; height: 8px; background: #0891b2; border-radius: 50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.audio-player { width: 100%; height: 44px; border-radius: 8px; }
+.track-id { font-size: 0.7rem; color: #94a3b8; margin-top: 4px; font-family: monospace; direction: ltr; text-align: left; }
+
+/* Interactive component placeholders */
+.interactive-placeholder { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; text-align: center; margin: 12px 0; }
+.interactive-placeholder .icon { font-size: 2.5rem; margin-bottom: 8px; }
+.interactive-placeholder .label { font-size: 0.85rem; color: #64748b; }
+
+/* Page-specific colors */
+.panic .card-icon { background: #fff7ed; color: #ea580c; }
+.panic .page-title { color: #ea580c; }
+.calming .card-icon { background: #ecfeff; color: #0891b2; }
+.calming .page-title { color: #0891b2; }
+.after .card-icon { background: #f0f9ff; color: #0284c7; }
+.after .page-title { color: #0284c7; }
+
+/* Step badges */
+.step-badge { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; font-size: 0.85rem; font-weight: 700; color: white; flex-shrink: 0; }
+.panic .step-badge { background: #ea580c; }
+.calming .step-badge { background: #0891b2; }
+.after .step-badge { background: #0284c7; }
+
+/* Legend */
+.legend { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+.legend h3 { font-size: 0.95rem; font-weight: 600; color: #92400e; margin-bottom: 8px; }
+.legend p { font-size: 0.85rem; color: #78350f; line-height: 1.6; }
+.legend .dashed-example { display: inline-block; border: 2px dashed #0891b2; background: #ecfeff; padding: 2px 10px; border-radius: 6px; font-size: 0.8rem; color: #0891b2; margin: 4px 0; }
+
+/* Sync indicator */
+.sync-note { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #059669; background: #ecfdf5; padding: 8px 12px; border-radius: 8px; margin-top: 8px; }
+.sync-note::before { content: ''; display: inline-block; width: 18px; height: 18px; background: #059669; border-radius: 50%; flex-shrink: 0; }
+
+/* Footer */
+.footer { text-align: center; padding: 30px 20px; color: #94a3b8; font-size: 0.8rem; border-top: 1px solid #e2e8f0; margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Neshima — Mock Integration</h1>
+    <p>הדגמה: איפה כל הקלטה משתלבת באפליקציה</p>
+</div>
+
+<div class="nav" id="nav">
+    <button class="active" onclick="showPage('panic')">התקף חרדה</button>
+    <button onclick="showPage('calming')">תרגילי הרגעה</button>
+    <button onclick="showPage('after')">אחרי אירוע</button>
+</div>
+
+<!-- ==================== PANIC ATTACK PAGE ==================== -->
+<div class="page panic active" id="page-panic">
+    <div class="page-title">התקף חרדה — הדרכה צעד-אחר-צעד</div>
+    <div class="page-subtitle">6 צעדים + כלים נוספים · 11 הקלטות</div>
+
+    <div class="legend">
+        <h3>מקרא</h3>
+        <p>כל אזור <span class="dashed-example">מסגרת מקווקוו</span> מסמן איפה נגן אודיו ישתלב. המשתמש ילחץ Play לשמוע את ההנחיה הקולית במקביל לטקסט ולאנימציות.</p>
+    </div>
+
+    <!-- Intro -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">&#128161;</div>
+            <div>
+                <div class="card-title">הקדמה</div>
+                <div class="card-step">נשמע ברגע שנכנסים לעמוד</div>
+            </div>
+        </div>
+        <div class="card-text">חשוב לדעת: התקף חרדה מרגיש כאילו אתם עומדים למות, אבל אתם לא. הוא מגיע לשיא תוך עשר דקות ועובר.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/panic-intro.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">panic-intro</div>
+        </div>
+    </div>
+
+    <!-- Step 1 -->
+    <div class="card">
+        <div class="card-header">
+            <span class="step-badge">1</span>
+            <div>
+                <div class="card-title">זיהוי</div>
+                <div class="card-step">צעד ראשון</div>
+            </div>
+        </div>
+        <div class="card-text">אמרו לעצמכם בקול: "זה התקף חרדה. עברתי את זה בעבר. זה יעבור."</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/panic-step1-recognize.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">panic-step1-recognize</div>
+        </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="card">
+        <div class="card-header">
+            <span class="step-badge">2</span>
+            <div>
+                <div class="card-title">עצור</div>
+                <div class="card-step">צעד שני</div>
+            </div>
+        </div>
+        <div class="card-text">עצרו את מה שאתם עושים. שבו אם אפשר. הניחו את הטלפון.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/panic-step2-stop.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">panic-step2-stop</div>
+        </div>
+    </div>
+
+    <!-- Step 3a -->
+    <div class="card">
+        <div class="card-header">
+            <span class="step-badge">3</span>
+            <div>
+                <div class="card-title">נשימת 4-6</div>
+                <div class="card-step">צעד שלישי — טכניקה א׳</div>
+            </div>
+        </div>
+        <div class="card-text">שאיפה ארבע שניות, נשיפה שש שניות. הנשיפה הארוכה מרגיעה את מערכת העצבים.</div>
+        <div class="interactive-placeholder">
+            <div class="icon">&#127744;</div>
+            <div class="label">אנימציית נשימה (BreathingCircle) — מסונכרנת עם ההקלטה</div>
+        </div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/panic-step3a-breathe.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">panic-step3a-breathe</div>
+            <div class="sync-note">אפשרות: סנכרון אנימציית הנשימה עם ההקלטה</div>
+        </div>
+    </div>
+
+    <!-- Step 3b -->
+    <div class="card">
+        <div class="card-header">
+            <span class="step-badge">3</span>
+            <div>
+                <div class="card-title">אנחה פיזיולוגית</div>
+                <div class="card-step">צעד שלישי — טכניקה ב׳</div>
+            </div>
+        </div>
+        <div class="card-text">שאיפה ארוכה, עוד לגימה קצרה למלא עד הסוף, ואז נשיפה ארוכה. הדרך המהירה ביותר להרגיע את הגוף.</div>
+        <div class="interactive-placeholder">
+            <div class="icon">&#129729;</div>
+            <div class="label">אנימציית ריאות (PhysiologicalSigh) — מסונכרנת עם ההקלטה</div>
+        </div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן — עם צלילי נשימה אמיתיים</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/panic-step3b-sigh.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">panic-step3b-sigh (take 3 — Flash model)</div>
+            <div class="sync-note">אפשרות: סנכרון אנימציית הריאות עם צלילי הנשימה בהקלטה</div>
+        </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="card">
+        <div class="card-header">
+            <span class="step-badge">4</span>
+            <div>
+                <div class="card-title">קרקע — טכניקת 5-4-3-2-1</div>
+                <div class="card-step">צעד רביעי</div>
+            </div>
+        </div>
+        <div class="card-text">חמישה דברים שאני רואה. ארבעה דברים שאני נוגע. שלושה שומע. שני מריח. אחד טועם.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/panic-step4-ground.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">panic-step4-ground</div>
+        </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="card">
+        <div class="card-header">
+            <span class="step-badge">5</span>
+            <div>
+                <div class="card-title">היזכר</div>
+                <div class="card-step">צעד חמישי</div>
+            </div>
+        </div>
+        <div class="card-text">"מה שאני מרגיש עכשיו זה התקף חרדה. זה מוכר לי." "אני במקום הכי בטוח שיכולתי להגיע אליו."</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/panic-step5-remind.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">panic-step5-remind</div>
+        </div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="card">
+        <div class="card-header">
+            <span class="step-badge">6</span>
+            <div>
+                <div class="card-title">המתן</div>
+                <div class="card-step">צעד שישי</div>
+            </div>
+        </div>
+        <div class="card-text">התקף חרדה הוא כמו גל — הוא עולה, מגיע לשיא, ויורד. רק לתת לגל לעבור.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/panic-step6-wait.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">panic-step6-wait</div>
+        </div>
+    </div>
+
+    <!-- After Wave -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">&#127754;</div>
+            <div>
+                <div class="card-title">אחרי שהגל עובר</div>
+                <div class="card-step">מה עושים כשההתקף חלף</div>
+            </div>
+        </div>
+        <div class="card-text">שתו מים. שבו ונוחו כמה דקות. התקשרו למישהו שאתם סומכים עליו.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/panic-after-wave.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">panic-after-wave</div>
+        </div>
+    </div>
+
+    <!-- Dissociation -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">&#128566;</div>
+            <div>
+                <div class="card-title">תחושת ניתוק (דיסוציאציה)</div>
+                <div class="card-step">אם מרגישים לא כאן</div>
+            </div>
+        </div>
+        <div class="card-text">מרגישים לא כאן? כאילו אתם צופים מבחוץ? זו דיסוציאציה — תחושת ניתוק. זו תגובה נורמלית.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/panic-dissociation.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">panic-dissociation</div>
+        </div>
+    </div>
+
+    <!-- Seek Help -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">&#128222;</div>
+            <div>
+                <div class="card-title">מתי לפנות לעזרה</div>
+                <div class="card-step">קווי עזרה</div>
+            </div>
+        </div>
+        <div class="card-text">אם ההתקפים חוזרים כמעט כל יום. אם אתם נמנעים מלצאת מהבית. דברו עם המטפל שלכם.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/panic-seek-help.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">panic-seek-help</div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== CALMING EXERCISES PAGE ==================== -->
+<div class="page calming" id="page-calming">
+    <div class="page-title">תרגילי הרגעה — לתרגול יומי</div>
+    <div class="page-subtitle">4 תרגילים + הקדמה · 5 הקלטות</div>
+
+    <div class="legend">
+        <h3>מקרא</h3>
+        <p>כל אזור <span class="dashed-example">מסגרת מקווקוו</span> מסמן איפה נגן אודיו ישתלב. בעמוד הזה כל תרגיל כולל אנימציה אינטראקטיבית + הקלטה קולית.</p>
+    </div>
+
+    <!-- Intro -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">&#127793;</div>
+            <div>
+                <div class="card-title">הקדמה</div>
+            </div>
+        </div>
+        <div class="card-text">תרגילי הרגעה לתרגול יומי. התרגילים מיועדים לשימוש יומיומי, ולא רק בזמן משבר.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/calming-intro.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">calming-intro</div>
+        </div>
+    </div>
+
+    <!-- Breathing -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">&#127744;</div>
+            <div>
+                <div class="card-title">נשימה מרגיעה</div>
+                <div class="card-step">4 טכניקות נשימה</div>
+            </div>
+        </div>
+        <div class="card-text">נשימת 4-6, אנחה פיזיולוגית, נשימת 4-7-8, ונשימה סרעפתית. הנשיפה הארוכה היא המפתח.</div>
+        <div class="interactive-placeholder">
+            <div class="icon">&#10024;</div>
+            <div class="label">אנימציות נשימה (BreathingCircle + PhysiologicalSigh + BoxBreathing) — אינטראקטיביות</div>
+        </div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה ארוכה — מלווה את כל הטכניקות</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/calming-breathing.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">calming-breathing</div>
+            <div class="sync-note">אפשרות: החלפת אנימציה אוטומטית כשההקלטה עוברת לטכניקה הבאה</div>
+        </div>
+    </div>
+
+    <!-- Grounding -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">&#127757;</div>
+            <div>
+                <div class="card-title">קרקוע חושי</div>
+                <div class="card-step">טכניקת 5-4-3-2-1 + קרקוע פיזי</div>
+            </div>
+        </div>
+        <div class="card-text">טכניקות קרקוע מפעילות את החושים של ההווה, ודרכם מחזירות את המוח לעבודה.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/calming-grounding.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">calming-grounding</div>
+        </div>
+    </div>
+
+    <!-- Safe Place -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">&#127968;</div>
+            <div>
+                <div class="card-title">מקום בטוח — דמיון מודרך</div>
+                <div class="card-step">מדיטציה מודרכת</div>
+            </div>
+        </div>
+        <div class="card-text">עצמו עיניים. דמיינו מקום שמרגיש בטוח ונעים. ראו את הצבעים, הרגישו את הטמפרטורה.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן — מדיטציה מודרכת שלמה</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/calming-safe-place.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">calming-safe-place</div>
+        </div>
+    </div>
+
+    <!-- Body Scan -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">&#129494;</div>
+            <div>
+                <div class="card-title">סריקת גוף — הרפיה מתקדמת</div>
+                <div class="card-step">תרגיל מלא מלמעלה למטה</div>
+            </div>
+        </div>
+        <div class="card-text">מתח נפשי נשמר בגוף כמתח שרירי. כשאנחנו מכווצים שריר ומשחררים, אנחנו מלמדים את הגוף מה זה באמת להירגע.</div>
+        <div class="interactive-placeholder">
+            <div class="icon">&#129494;</div>
+            <div class="label">אנימציית גוף — הדגשת האזור הנסרק (פנים ← כתפיים ← ידיים ← בטן ← רגליים)</div>
+        </div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה ארוכה — מנחה את כל הסריקה</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/calming-body-scan.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">calming-body-scan</div>
+            <div class="sync-note">אפשרות: סנכרון אנימציית הגוף — הדגשת כל אזור כשההקלטה מגיעה אליו</div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== AFTER EVENT PAGE ==================== -->
+<div class="page after" id="page-after">
+    <div class="page-title">אחרי אירוע מלחיץ</div>
+    <div class="page-subtitle">הנחיות לפי שלב זמן · 6 הקלטות</div>
+
+    <div class="legend">
+        <h3>מקרא</h3>
+        <p>כל אזור <span class="dashed-example">מסגרת מקווקוו</span> מסמן איפה נגן אודיו ישתלב. העמוד מחולק לפי זמן — מיד אחרי, שעות, שינה, ימים.</p>
+    </div>
+
+    <!-- Intro -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">&#127749;</div>
+            <div>
+                <div class="card-title">הקדמה</div>
+            </div>
+        </div>
+        <div class="card-text">האזעקה נגמרה. האירוע עבר. אבל הגוף עדיין בהילוך גבוה. זה נורמלי — הגוף צריך זמן להתאושש.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/after-intro.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">after-intro</div>
+        </div>
+    </div>
+
+    <!-- Immediate -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">&#9201;</div>
+            <div>
+                <div class="card-title">ברגעים הראשונים</div>
+                <div class="card-step">מיד אחרי</div>
+            </div>
+        </div>
+        <div class="card-text">שתו מים. הזיזו את הגוף. קרקוע. התקשרו למישהו. נשמו חמש נשימות עמוקות.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/after-immediate.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">after-immediate</div>
+        </div>
+    </div>
+
+    <!-- Hours -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">&#128336;</div>
+            <div>
+                <div class="card-title">בשעות הבאות</div>
+                <div class="card-step">איך לעבור את שאר היום</div>
+            </div>
+        </div>
+        <div class="card-text">הימנעו מצריכת חדשות מוגזמת. אל תתבודדו. פעילות גופנית קלה. אכלו משהו. עשו משהו מרגיע.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/after-hours.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">after-hours</div>
+        </div>
+    </div>
+
+    <!-- Sleep -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">&#127769;</div>
+            <div>
+                <div class="card-title">שינה</div>
+                <div class="card-step">לפני השינה</div>
+            </div>
+        </div>
+        <div class="card-text">שמרו על שעת שינה קבועה. בלי מסכים שעה לפני. חדר חשוך, שקט וקריר.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/after-sleep.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">after-sleep</div>
+        </div>
+    </div>
+
+    <!-- Normal -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">&#128197;</div>
+            <div>
+                <div class="card-title">מה נורמלי להרגיש</div>
+                <div class="card-step">בימים שאחרי</div>
+            </div>
+        </div>
+        <div class="card-text">קושי להתרכז. חוסר סבלנות. בעיות שינה. תחושת ניתוק. רוב התגובות חולפות תוך ימים עד שבועות.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/after-normal.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">after-normal</div>
+        </div>
+    </div>
+
+    <!-- Seek Help -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon">&#128222;</div>
+            <div>
+                <div class="card-title">מתי לפנות לעזרה</div>
+                <div class="card-step">קווי עזרה</div>
+            </div>
+        </div>
+        <div class="card-text">אם התסמינים נמשכים יותר משבועיים. אם אתם לא מצליחים לתפקד. קווי עזרה: ער"ן 1201, נט"ל 1-800-363-363.</div>
+        <div class="audio-zone">
+            <div class="audio-zone-label">הקלטה משתלבת כאן</div>
+            <audio controls class="audio-player" preload="none"><source src="audio/after-seek-help.mp3" type="audio/mpeg"></audio>
+            <div class="track-id">after-seek-help</div>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    <p>Mock Integration — Neshima Audio v7</p>
+    <p>22 הקלטות · 3 עמודים · Gemini TTS Kore Voice</p>
+    <p style="margin-top: 8px; color: #cbd5e1;">זהו מוק בלבד — לא האתר הסופי. מדגים את מיקום ההקלטות באפליקציה.</p>
+</div>
+
+<script>
+function showPage(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    event.target.classList.add('active');
+    window.scrollTo(0, 0);
+}
+</script>
+</body>
+</html>
